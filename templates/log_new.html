@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">トレーニング記録（新規）</h4>
+<form method="post" class="card p-3 shadow-sm" style="max-width:700px;">
+  {% if prefill %}
+    <input type="hidden" name="plan_id" value="{{ prefill.id }}">
+    <div class="alert alert-secondary">
+      計画: {{ prefill.planned_date }} / {{ prefill.title }}（{{ prefill.planned_minutes }}分）
+      {% if prefill.exercises %}
+        <div class="small mt-1">
+          種目：
+          {% for ex in prefill.exercises.split(",") %}
+            <span class="badge bg-light text-dark me-1">{{ ex }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">実施日</label>
+      <input type="date" name="actual_date" class="form-control"
+             value="{{ today }}" required>
+    </div>
+    <div class="col-md-8">
+      <label class="form-label">スタート方法</label>
+      <div class="d-flex align-items-center flex-wrap gap-3">
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="start_mode"
+                 id="modeNormal" value="normal" checked>
+          <label class="form-check-label" for="modeNormal">
+            即スタート
+          </label>
+        </div>
+        <div class="form-check d-flex align-items-center gap-2">
+          <input class="form-check-input" type="radio" name="start_mode"
+                 id="modeCountdown" value="countdown">
+          <label class="form-check-label" for="modeCountdown">
+            カウントダウンスタート（−秒）
+          </label>
+          <input type="number" id="countdownSeconds"
+                 class="form-control form-control-sm"
+                 style="width:80px;" min="1" max="10" value="3">
+          <span class="small text-muted">1〜10秒前から「−」表示 ＋ 女性の声でカウント</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-3">
+    <div class="d-flex align-items-center gap-3 mb-2">
+      <div class="fs-3 fw-bold" id="timerDisplay">00:00:00</div>
+      <input type="hidden" id="secondsTotalInput" name="seconds_total" value="0">
+    </div>
+    <div class="d-flex gap-2 mb-3">
+      <button type="button" class="btn btn-success btn-sm" id="btnStart">Start</button>
+      <button type="button" class="btn btn-warning btn-sm" id="btnStop">Stop</button>
+      <button type="button" class="btn btn-secondary btn-sm" id="btnReset">Reset</button>
+    </div>
+    <div class="form-text">
+      ・「即スタート」：0秒から普通のストップウォッチ。<br>
+      ・「カウントダウン」：−N秒 → −… → −1 → 0 で、女性の声で「3,2,1,スタート」と読み上げます。<br>
+      ・保存されるのは「0秒〜のプラス側の時間」だけです。
+    </div>
+  </div>
+
+  <label class="form-label mt-3">メモ（今回のトレーニングの内容）</label>
+  <textarea name="notes" class="form-control" rows="3"
+            placeholder="今回のセット数、感想など"></textarea>
+
+  <div class="mt-3 d-flex gap-2">
+    <button class="btn btn-primary">記録を保存</button>
+    <a href="{{ url_for('logs') }}" class="btn btn-outline-secondary">履歴一覧へ</a>
+  </div>
+</form>
+
+<script>
+// -------- 新規ログ用ストップウォッチ（カウントダウン＋女性音声） --------
+document.addEventListener("DOMContentLoaded", function () {
+  let timerInterval = null;
+  let elapsedSeconds = 0;
+  let running = false;
+
+  const displayEl = document.getElementById("timerDisplay");
+  const secondsHiddenEl = document.getElementById("secondsTotalInput");
+  const btnStart = document.getElementById("btnStart");
+  const btnStop = document.getElementById("btnStop");
+  const btnReset = document.getElementById("btnReset");
+  const modeCountdownEl = document.getElementById("modeCountdown");
+  const countdownInputEl = document.getElementById("countdownSeconds");
+
+  let selectedVoice = null;
+
+  function pickFemaleVoice() {
+    if (!("speechSynthesis" in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return null;
+
+    const femaleKeywords = ["female", "woman", "girl", "女性", "女", "Mizuki", "Haruka"];
+    const jaKeywords = ["ja-JP", "Japanese", "日本"];
+
+    let candidates = voices.filter(v =>
+      jaKeywords.some(k => (v.lang || "").includes(k))
+    );
+    let femaleCandidates = candidates.filter(v =>
+      femaleKeywords.some(k => (v.name || "").toLowerCase().includes(k.toLowerCase()))
+    );
+    if (femaleCandidates.length > 0) return femaleCandidates[0];
+    if (candidates.length > 0) return candidates[0];
+
+    femaleCandidates = voices.filter(v =>
+      femaleKeywords.some(k => (v.name || "").toLowerCase().includes(k.toLowerCase()))
+    );
+    if (femaleCandidates.length > 0) return femaleCandidates[0];
+
+    return voices[0];
+  }
+
+  function speakText(text) {
+    if (!("speechSynthesis" in window)) return;
+    const synth = window.speechSynthesis;
+
+    if (!selectedVoice) {
+      selectedVoice = pickFemaleVoice();
+      if (!selectedVoice && synth.onvoiceschanged == null) {
+        synth.onvoiceschanged = function () {
+          if (!selectedVoice) {
+            selectedVoice = pickFemaleVoice();
+          }
+        };
+      }
+    }
+
+    const utter = new SpeechSynthesisUtterance(text);
+    if (selectedVoice) {
+      utter.voice = selectedVoice;
+    }
+    utter.rate = 1.0;
+    utter.pitch = 1.1;
+    synth.cancel();
+    synth.speak(utter);
+  }
+
+  function speakCountdown(secValue) {
+    if (secValue > 0) {
+      speakText(String(secValue));
+    } else {
+      speakText("スタート！");
+    }
+  }
+
+  function formatTimeWithSign(sec) {
+    let sign = "";
+    if (sec < 0) {
+      sign = "-";
+      sec = Math.abs(sec);
+    }
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`.replace(/^0{2}:/, sign + "00:");
+  }
+
+  function effectiveSeconds() {
+    return elapsedSeconds > 0 ? elapsedSeconds : 0;
+  }
+
+  function updateDisplay() {
+    displayEl.textContent = formatTimeWithSign(elapsedSeconds);
+    secondsHiddenEl.value = effectiveSeconds();
+  }
+
+  btnStart.addEventListener("click", () => {
+    if (running) return;
+    running = true;
+
+    if (modeCountdownEl.checked && elapsedSeconds === 0) {
+      let cd = parseInt(countdownInputEl.value || "3", 10);
+      if (isNaN(cd) || cd < 1) cd = 3;
+      if (cd > 10) cd = 10;
+      elapsedSeconds = -cd;
+    }
+
+    timerInterval = setInterval(() => {
+      const prev = elapsedSeconds;
+      elapsedSeconds += 1;
+
+      if (modeCountdownEl.checked && prev <= 0) {
+        if (elapsedSeconds < 0) {
+          const speakVal = Math.abs(elapsedSeconds);
+          speakCountdown(speakVal);
+        } else if (elapsedSeconds === 0) {
+          speakCountdown(0);
+        }
+      }
+
+      updateDisplay();
+    }, 1000);
+  });
+
+  btnStop.addEventListener("click", () => {
+    if (!running) return;
+    running = false;
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  });
+
+  btnReset.addEventListener("click", () => {
+    running = false;
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+    elapsedSeconds = 0;
+    updateDisplay();
+  });
+
+  updateDisplay();
+});
+</script>
+{% endblock %}

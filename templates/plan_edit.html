@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">トレーニング計画の編集</h4>
+
+<form method="post" class="card p-3 shadow-sm" style="max-width:700px;">
+
+  {% set selected = (plan.exercises or "").split(",") %}
+
+  <div class="mb-3">
+    <label class="form-label">プログラム名（インデックス）</label>
+    <input type="text" name="title" class="form-control"
+           value="{{ plan.title }}" required>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">含める種目（複数選択OK）</label>
+    <div class="row row-cols-2 row-cols-md-3 g-1">
+      {% set options = [
+        "プランク",
+        "ドローイン",
+        "背伸びストレッチ",
+        "腕立て伏せ",
+        "懸垂",
+        "スクワット",
+        "ランジ",
+        "カーフレイズ",
+        "ウォーキング",
+        "ランニング"
+      ] %}
+      {% for ex in options %}
+        {% set checked = ex in selected %}
+        <div class="col">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox"
+                   name="exercises" id="ex_{{ loop.index }}" value="{{ ex }}"
+                   {% if checked %}checked{% endif %}>
+            <label class="form-check-label small" for="ex_{{ loop.index }}">
+              {{ ex }}
+            </label>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">計画日</label>
+    <input type="date" name="planned_date" class="form-control"
+           value="{{ plan.planned_date }}" required>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">予定時間（分）</label>
+    <input type="number" name="planned_minutes" class="form-control"
+           value="{{ plan.planned_minutes }}" min="1">
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">メモ（任意）</label>
+    <textarea name="notes" class="form-control" rows="3">{{ plan.notes or "" }}</textarea>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary">保存</button>
+    <a href="{{ url_for('plan_detail', plan_id=plan.id) }}" class="btn btn-outline-secondary">戻る</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h4 class="mb-3">トレーニングレベル設定</h4>
+
+<form method="post" class="card p-3 shadow-sm" style="max-width:500px;">
+
+  <div class="mb-3">
+    <label class="form-label">現在のレベル</label>
+    <p>レベル {{ current_level }}</p>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">レベルを選択</label>
+    <select name="level" class="form-select">
+      <option value="1" {% if current_level==1 %}selected{% endif %}>レベル1（初心者）</option>
+      <option value="2" {% if current_level==2 %}selected{% endif %}>レベル2（中級者）</option>
+      <option value="3" {% if current_level==3 %}selected{% endif %}>レベル3（上級者）</option>
+    </select>
+  </div>
+
+  <button class="btn btn-primary">保存</button>
+  <a href="{{ url_for('index') }}" class="btn btn-outline-secondary ms-2">戻る</a>
+</form>
+
+{% endblock %}

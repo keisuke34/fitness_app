@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">実施履歴一覧</h4>
+
+{% if rows %}
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>日付</th>
+        <th>Plan ID</th>
+        <th>種目</th>
+        <th>時間</th>
+        <th>回数</th>
+        <th>セット</th>
+        <th>メモ</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.actual_date }}</td>
+        <td>{{ r.plan_id or "-" }}</td>
+        <td>{{ r.exercise_name or "-" }}</td>
+        <td>{{ r.duration_str }}</td>
+        <td>{{ r.reps or "-" }}</td>
+        <td>{{ r.sets or "-" }}</td>
+        <td class="small">{{ r.notes or "" }}</td>
+        <td>
+          <a href="{{ url_for('log_edit', log_id=r.id) }}"
+             class="btn btn-sm btn-outline-primary me-1">編集</a>
+          <form method="post" action="{{ url_for('log_delete', log_id=r.id) }}"
+                style="display:inline;"
+                onsubmit="return confirm('この記録を削除します。よろしいですか？');">
+            <button class="btn btn-sm btn-outline-danger">削除</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="text-muted">まだ実施記録はありません。</p>
+{% endif %}
+
+{% endblock %}

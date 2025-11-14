@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">トレーニング計画の追加</h4>
+
+<form method="post" class="card p-3 shadow-sm" style="max-width:700px;">
+
+  <!-- インデックス名（まとまりの名前） -->
+  <div class="mb-3">
+    <label class="form-label">プログラム名（インデックス）</label>
+    <input type="text" name="title" class="form-control"
+           placeholder="例）体幹＋姿勢リセット、上半身ベーシック など" required>
+    <div class="form-text">
+      その日のメニュー全体の名前です（例：「体幹＋姿勢リセット」など）。
+    </div>
+  </div>
+
+  <!-- 個々の種目をチェックボックスで選択 -->
+  <div class="mb-3">
+    <label class="form-label">含める種目（複数選択OK）</label>
+    <div class="row row-cols-2 row-cols-md-3 g-1">
+      {% set options = [
+        "プランク",
+        "ドローイン",
+        "背伸びストレッチ",
+        "腕立て伏せ",
+        "懸垂",
+        "スクワット",
+        "ランジ",
+        "カーフレイズ",
+        "ウォーキング",
+        "ランニング"
+      ] %}
+      {% for ex in options %}
+        <div class="col">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox"
+                   name="exercises" id="ex_{{ loop.index }}" value="{{ ex }}">
+            <label class="form-check-label small" for="ex_{{ loop.index }}">
+              {{ ex }}
+            </label>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="form-text">
+      具体的に行う種目を選んでください。あとから編集もできます。
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">計画日</label>
+    <input type="date" name="planned_date" class="form-control"
+           value="{{ today }}" required>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">予定時間（分）</label>
+    <input type="number" name="planned_minutes" class="form-control"
+           value="30" min="1">
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">メモ（任意）</label>
+    <textarea name="notes" class="form-control" rows="3"
+              placeholder="その日の目的や強度の目安など"></textarea>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary">追加</button>
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">戻る</a>
+  </div>
+</form>
+{% endblock %}

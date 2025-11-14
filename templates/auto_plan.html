@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">6か月（180日）トレーニングプラン自動生成</h4>
+
+<form method="post" class="card p-3 shadow-sm" style="max-width:500px;">
+  <div class="mb-3">
+    <label class="form-label">開始日</label>
+    <input type="date" name="start_date" class="form-control"
+           value="{{ today }}" required>
+    <div class="form-text">
+      この日から180日分のプランを自動で作ります。<br>
+      同じ期間に既にあるプランは一度削除してから作り直します。
+    </div>
+  </div>
+
+  <button class="btn btn-primary">6か月プランを作成する</button>
+  <a href="{{ url_for('index') }}" class="btn btn-outline-secondary ms-2">ホームに戻る</a>
+</form>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h4 class="mb-2">{{ date }} のトレーニング</h4>
+
+<!-- この日の進捗バー -->
+<div class="mb-3">
+  {% if total_plans > 0 %}
+    <p class="small text-muted">
+      実施済み {{ done_plans }} / 計画数 {{ total_plans }} （{{ date_progress_percent }}%）
+    </p>
+    <div class="progress" style="height: 16px; max-width:400px;">
+      <div class="progress-bar bg-{{ date_progress_color }}"
+           role="progressbar"
+           style="width: {{ date_progress_percent }}%;"
+           aria-valuenow="{{ date_progress_percent }}"
+           aria-valuemin="0" aria-valuemax="100">
+      </div>
+    </div>
+  {% else %}
+    <p class="text-muted">この日にはまだ計画がありません。</p>
+  {% endif %}
+</div>
+
+<div class="mb-3">
+  <a href="{{ url_for('plan_new', date=date.isoformat()) }}" class="btn btn-sm btn-outline-success">
+    この日に新しい計画を追加
+  </a>
+  <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary ms-2">
+    ホームに戻る
+  </a>
+</div>
+
+<h5 class="mt-3">この日の計画</h5>
+{% if plans %}
+  <ul class="list-group mb-3">
+    {% for p in plans %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <a href="{{ url_for('plan_detail', plan_id=p.id) }}" class="fw-bold">
+            {{ p.title }}
+          </a>
+          <div class="small text-muted">
+            予定 {{ p.planned_minutes }} 分
+            {% if p.notes %}
+              ／ {{ p.notes }}
+            {% endif %}
+          </div>
+          {% if p.exercises %}
+            <div class="small mt-1">
+              種目：
+              {% for ex in p.exercises.split(",") %}
+                <span class="badge bg-light text-dark me-1">{{ ex }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+        <div>
+          {% if p.id in done_map %}
+            <span class="badge bg-success">実施あり</span>
+          {% else %}
+            <span class="badge bg-secondary">未実施</span>
+          {% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="text-muted">この日に登録された計画はありません。</p>
+{% endif %}
+
+<h5 class="mt-3">この日の実施ログ</h5>
+{% if logs %}
+  <table class="table table-sm table-hover align-middle">
+    <thead>
+      <tr>
+        <th>種目（Plan ID）</th>
+        <th>時間</th>
+        <th>メモ</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for log in logs %}
+      <tr>
+        <td>
+          {% if log.plan_id %}
+            <a href="{{ url_for('plan_detail', plan_id=log.plan_id) }}">Plan {{ log.plan_id }}</a>
+          {% else %}
+            （Plan なし）
+          {% endif %}
+        </td>
+        <td>{{ log.duration_str }}</td>
+        <td class="small">{{ log.notes or "" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="text-muted">この日の実施ログはありません。</p>
+{% endif %}
+
+{% endblock %}

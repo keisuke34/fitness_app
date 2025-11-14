@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">実施記録の修正</h4>
+
+<form method="post" class="card p-3 shadow-sm" style="max-width:700px;">
+
+  <div class="mb-2">
+    <span class="badge bg-secondary">現在の時間</span>
+    <span class="ms-2 fw-bold">{{ log.duration_str }}</span>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">実施日</label>
+      <input type="date" name="actual_date" class="form-control"
+             value="{{ log.actual_date }}" required>
+    </div>
+  </div>
+
+  <!-- 🔽 カウントダウン設定（編集用） -->
+  <div class="mt-3 mb-2">
+    <label class="form-label">カウントダウン設定</label>
+    <div class="form-check form-switch mb-1">
+      <input class="form-check-input" type="checkbox" id="useCountdownSwitch">
+      <label class="form-check-label" for="useCountdownSwitch">
+        Start 前にカウントダウン音声を使う
+      </label>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <label class="form-label mb-0 small">カウントダウン秒数（最大10秒）</label>
+      <input type="number" id="countdownSecondsInput" class="form-control form-control-sm"
+             style="width:80px;" value="5" min="1" max="10">
+    </div>
+    <div class="form-text">
+      例：5 にすると「5,4,3,2,1,0」と高めの女性の声でカウントダウンしてから 0:00:00 で再計測を始められます。
+    </div>
+  </div>
+  <!-- 🔼 カウントダウン設定 -->
+
+  <div class="mt-3">
+    <div class="d-flex align-items-center gap-3 mb-2">
+      <div class="fs-3 fw-bold" id="timerDisplay">00:00:00</div>
+      <input type="hidden" id="secondsTotalInput" name="seconds_total"
+             value="{{ log.seconds_total }}">
+    </div>
+    <div class="d-flex gap-2 mb-1">
+      <button type="button" class="btn btn-success btn-sm" id="btnStart">Start</button>
+      <button type="button" class="btn btn-warning btn-sm" id="btnStop">Stop</button>
+      <button type="button" class="btn btn-secondary btn-sm" id="btnReset">Reset</button>
+    </div>
+    <div class="form-text">
+      Reset すると0秒から再計測できます。カウントダウンをONにすると、
+      「5,4,3,2,1,0」のあとに計測スタートします。
+    </div>
+  </div>
+
+  <div class="row mt-3 mb-3">
+    <div class="col-md-4">
+      <label class="form-label">回数（reps）</label>
+      <input type="number" name="reps" class="form-control"
+             value="{{ log.reps or '' }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">セット数（sets）</label>
+      <input type="number" name="sets" class="form-control"
+             value="{{ log.sets or '' }}">
+    </div>
+  </div>
+
+  <label class="form-label mt-2">メモ</label>
+  <textarea name="notes" class="form-control" rows="3"
+            placeholder="内容や感想">{{ log.notes or "" }}</textarea>
+
+  <div class="mt-3 d-flex gap-2">
+    <button class="btn btn-primary">保存</button>
+    <a href="{{ url_for('logs') }}" class="btn btn-outline-secondary">履歴一覧へ戻る</a>
+  </div>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  let timerInterval = null;
+  let elapsedSeconds = Number(document.getElementById("secondsTotalInput").value || 0);
+  let running = false;
+
+  // カウントダウン用
+  let countdownInterval = null;
+  let inCountdown = false;
+  let countdownRemaining = 0;
+
+  const displayEl = document.getElementById("timerDisplay");
+  const secondsHiddenEl = document.getElementById("secondsTotalInput");
+  const btnStart = document.getElementById("btnStart");
+  const btnStop = document.getElementById("btnStop");
+  const btnReset = document.getElementById("btnReset");
+  const useCountdownSwitch = document.getElementById("useCountdownSwitch");
+  const countdownSecondsInput = document.getElementById("countdownSecondsInput");
+
+  // ---- 音声読み上げ（Web Speech API）----
+  function speakNumber(num) {
+    if (!("speechSynthesis" in window)) {
+      return;
+    }
+    const text = String(num);
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "ja-JP";
+    utter.pitch = 1.6; // 高め
+    utter.rate = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const jaVoices = voices.filter(v => v.lang && v.lang.startsWith("ja"));
+    if (jaVoices.length > 0) {
+      const femaleLike = jaVoices.find(v =>
+        /female|女性|Woman|女/i.test(v.name)
+      );
+      utter.voice = femaleLike || jaVoices[0];
+    }
+
+    window.speechSynthesis.speak(utter);
+  }
+
+  function formatTimeWithSign(sec, negative) {
+    const abs = Math.abs(sec);
+    const h = Math.floor(abs / 3600);
+    const m = Math.floor((abs % 3600) / 60);
+    const s = abs % 60;
+    const base =
+      String(h).padStart(2, "0") + ":" +
+      String(m).padStart(2, "0") + ":" +
+      String(s).padStart(2, "0");
+    return negative ? "-" + base : base;
+  }
+
+  function formatTime(sec) {
+    return formatTimeWithSign(sec, false);
+  }
+
+  function updateDisplay() {
+    displayEl.textContent = formatTime(elapsedSeconds);
+    secondsHiddenEl.value = elapsedSeconds;
+  }
+
+  function showCountdown(sec) {
+    displayEl.textContent = formatTimeWithSign(sec, true);
+    secondsHiddenEl.value = 0;
+  }
+
+  function clearMainTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  function clearCountdownTimer() {
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+    }
+  }
+
+  btnStart.addEventListener("click", () => {
+    if (running || inCountdown) return;
+
+    const useCountdown = useCountdownSwitch.checked;
+    let cdSeconds = parseInt(countdownSecondsInput.value || "0", 10);
+    if (cdSeconds > 10) cdSeconds = 10;
+    if (cdSeconds < 1) cdSeconds = 0;
+
+    if (!useCountdown || cdSeconds === 0) {
+      running = true;
+      timerInterval = setInterval(() => {
+        elapsedSeconds += 1;
+        updateDisplay();
+      }, 1000);
+      return;
+    }
+
+    inCountdown = true;
+    countdownRemaining = cdSeconds;
+
+    showCountdown(countdownRemaining);
+    speakNumber(countdownRemaining);
+
+    countdownInterval = setInterval(() => {
+      countdownRemaining -= 1;
+
+      if (countdownRemaining >= 0) {
+        showCountdown(countdownRemaining);
+        speakNumber(countdownRemaining);
+      }
+
+      if (countdownRemaining <= 0) {
+        clearCountdownTimer();
+        inCountdown = false;
+
+        elapsedSeconds = 0;
+        updateDisplay();
+        running = true;
+        timerInterval = setInterval(() => {
+          elapsedSeconds += 1;
+          updateDisplay();
+        }, 1000);
+      }
+    }, 1000);
+  });
+
+  btnStop.addEventListener("click", () => {
+    if (inCountdown) {
+      inCountdown = false;
+      clearCountdownTimer();
+    }
+    if (!running) return;
+    running = false;
+    clearMainTimer();
+  });
+
+  btnReset.addEventListener("click", () => {
+    inCountdown = false;
+    running = false;
+    clearCountdownTimer();
+    clearMainTimer();
+    elapsedSeconds = 0;
+    updateDisplay();
+  });
+
+  updateDisplay();
+});
+</script>
+
+{% endblock %}

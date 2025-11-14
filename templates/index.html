@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- 全体進捗バー -->
+<div class="mb-4">
+  <h4>全体の進捗</h4>
+  {% if total_days > 0 %}
+    <p class="small text-muted">
+      達成日 {{ done_days }} / 計画日 {{ total_days }} （{{ overall_percent }}%）
+    </p>
+    <div class="progress" style="height: 20px;">
+      <div class="progress-bar bg-{{ overall_color }}"
+           role="progressbar"
+           style="width: {{ overall_percent }}%;"
+           aria-valuenow="{{ overall_percent }}"
+           aria-valuemin="0" aria-valuemax="100">
+        {{ overall_percent }}%
+      </div>
+    </div>
+  {% else %}
+    <p class="text-muted">まだ計画がありません。「6か月プラン自動生成」から作成できます。</p>
+  {% endif %}
+  <div class="mt-3 d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('auto_plan') }}" class="btn btn-outline-primary btn-sm">
+      6か月（180日）プランを自動作成
+    </a>
+    <a href="{{ url_for('plan_new') }}" class="btn btn-outline-success btn-sm">
+      手動で計画を追加
+    </a>
+  </div>
+</div>
+
+<h4 class="mb-3">今日以降の計画</h4>
+{% if upcoming %}
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      <th>日付</th>
+      <th>トレーニング種目</th>
+      <th>メモ・種目</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for day, plans_on_day in upcoming | groupby('planned_date') %}
+    <tr>
+      <td>
+        <a href="{{ url_for('day_view', date_str=day) }}">
+          {{ day }}
+        </a>
+      </td>
+      <td>
+        {% for p in plans_on_day %}
+          <a href="{{ url_for('plan_detail', plan_id=p.id) }}"
+             class="badge bg-primary text-decoration-none me-1 mb-1 d-inline-block">
+            {{ p.title }}
+          </a>
+        {% endfor %}
+      </td>
+      <td class="small">
+        {% for p in plans_on_day %}
+          {% if p.notes %}
+            <div>・{{ p.title }}: {{ p.notes }}</div>
+          {% endif %}
+          {% if p.exercises %}
+            <div>
+              種目：
+              {% for ex in p.exercises.split(",") %}
+                <span class="badge bg-light text-dark me-1">{{ ex }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">今日以降の計画はありません。</p>
+{% endif %}
+
+<h4 class="mt-4 mb-3 text-danger">未消化（過去日）</h4>
+{% if overdue %}
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      <th>日付</th>
+      <th>トレーニング種目</th>
+      <th>メモ・種目</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for day, plans_on_day in overdue | groupby('planned_date') %}
+    <tr>
+      <td>
+        <a href="{{ url_for('day_view', date_str=day) }}">
+          {{ day }}
+        </a>
+      </td>
+      <td>
+        {% for p in plans_on_day %}
+          <a href="{{ url_for('plan_detail', plan_id=p.id) }}"
+             class="badge bg-warning text-dark text-decoration-none me-1 mb-1 d-inline-block">
+            {{ p.title }}
+          </a>
+        {% endfor %}
+      </td>
+      <td class="small">
+        {% for p in plans_on_day %}
+          {% if p.notes %}
+            <div>・{{ p.title }}: {{ p.notes }}</div>
+          {% endif %}
+          {% if p.exercises %}
+            <div>
+              種目：
+              {% for ex in p.exercises.split(",") %}
+                <span class="badge bg-light text-dark me-1">{{ ex }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">未消化の過去計画はありません。</p>
+{% endif %}
+
+{% endblock %}
