@@ -763,6 +763,7 @@ def exercise_detail(plan_id, ex_index):
         "exercise_detail.html",
         plan=plan,
         ex_name=ex_name,
+        exercise_name=ex_name,  # ★ 追加：テンプレート用の種目名
         ex_index=ex_index,
         logs=logs,
         total_str=total_str,

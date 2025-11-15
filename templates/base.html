@@ -58,5 +58,10 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='stopwatch.js') }}"></script>
+  ...
+  <!-- ここまで各ページ固有の内容 -->
+
+  <script src="{{ url_for('static', filename='stopwatch.js') }}"></script>
 </body>
 </html>
